@@ -9,20 +9,36 @@ BIN_DIR=$(cd $(dirname $0); pwd) # absolute path
 
 # source in common functions
 . $BIN_DIR/common.sh
+. $BIN_DIR/java
+. $BIN_DIR/util
 
 PLAY_PATH=".play"
 IVY_PATH=".ivy2"
+JDK_PATH=".jdk"
+
+# copy cache directories
+mkdir -p $CACHE_DIR
+copy_directories $JDK_PATH $CACHE_DIR $BUILD_DIR
 
 # Change dir to handle relative paths
 cd $BUILD_DIR
 
 # Unpack cache
-for DIR in $PLAY_PATH $IVY_PATH ; do
+for DIR in $PLAY_PATH $IVY_PATH $JDK_PATH ; do
   rm -rf $DIR
   if [ -d $CACHE_DIR/$DIR ]; then
     cp -r $CACHE_DIR/$DIR $DIR
   fi
 done
+
+echo -n "-----> Detecting JDK version..."
+jdkVersion=$(get_java_version ${BUILD_DIR})
+echo "${jdkVersion} detected"
+echo -n "-----> Installing JDK ${jdkVersion}..."
+install_java $BUILD_DIR $jdkVersion
+echo " done"
+
+copy_directories ".jdk" ${BUILD_DIR} ${CACHE_DIR}
 
 PLAY_VERSION=$(get_play_version conf/dependencies.yml)
 DEFAULT_PLAY_VERSION="1.2.4"
