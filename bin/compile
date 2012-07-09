@@ -1,46 +1,74 @@
 #!/usr/bin/env bash
 # bin/compile <build-dir> <cache-dir>
 
+#
+# General
+#
+
+# fail fast
+set -e
+
+BIN_DIR=$(cd $(dirname $0); pwd) # absolute path
+
 # Parse args
 BUILD_DIR=$1
 CACHE_DIR=$2
 
-BIN_DIR=$(cd $(dirname $0); pwd) # absolute path
-
 # source in common functions
 . $BIN_DIR/common.sh
-. $BIN_DIR/java
-. $BIN_DIR/util
+
+# create the cache dir if it doesn't exist
+mkdir -p $CACHE_DIR
+
+#
+# JDK 1.7 install
+#
+
+JDK_PATH=".jdk7"
+OPENJDK7_URL="https://s3.amazonaws.com/heroku-jvm-langpack-java/openjdk7-u2-heroku-temaki.tar.gz"
+
+# Change dir to handle relative paths
+cd $BUILD_DIR
+
+if [ -d "$CACHE_DIR/$JDK_PATH" ]; then
+  echo -n "copying jdk to app"
+  cp -r "$CACHE_DIR/$JDK_PATH" $BUILD_DIR
+  echo "done"
+fi
+
+if [ ! -d "$BUILD_DIR/$JDK_PATH" ]; then
+  echo -n "-----> Installing OpenJDK7u2 build (to .jdk7)....."
+  mkdir "$BUILD_DIR/$JDK_PATH"
+  cd "$BUILD_DIR/$JDK_PATH"
+  curl --max-time 180 --location $OPENJDK7_URL | tar xz
+  cd $BUILD_DIR
+  cp -r $JDK_PATH $CACHE_DIR/$JDK_PATH
+  echo " done"
+fi
+
+#
+# Play 1.2.4 install + Ivy settings
+#
 
 PLAY_PATH=".play"
 IVY_PATH=".ivy2"
-JDK_PATH=".jdk"
 
-# copy cache directories
-mkdir -p $CACHE_DIR
-copy_directories $JDK_PATH $CACHE_DIR $BUILD_DIR
+PLAY_VERSION=$(get_play_version conf/dependencies.yml)
+DEFAULT_PLAY_VERSION="1.2.4"
+VERSION_DECLARED=true
+
+PLAY_SETTINGS_URL="http://s3.amazonaws.com/heroku-jvm-langpack-play/ivysettings.xml"
 
 # Change dir to handle relative paths
 cd $BUILD_DIR
 
 # Unpack cache
-for DIR in $PLAY_PATH $IVY_PATH $JDK_PATH ; do
+for DIR in $PLAY_PATH $IVY_PATH ; do
   rm -rf $DIR
   if [ -d $CACHE_DIR/$DIR ]; then
     cp -r $CACHE_DIR/$DIR $DIR
   fi
 done
-
-echo -n "-----> Detecting JDK version..."
-jdkVersion=$(get_java_version ${BUILD_DIR})
-echo "${jdkVersion} detected"
-echo -n "-----> Installing JDK ${jdkVersion}..."
-install_java $BUILD_DIR $jdkVersion
-echo " done"
-
-PLAY_VERSION=$(get_play_version conf/dependencies.yml)
-DEFAULT_PLAY_VERSION="1.2.4"
-VERSION_DECLARED=true
 
 if [ -z "$PLAY_VERSION" ] ; then
   PLAY_VERSION=$DEFAULT_PLAY_VERSION
@@ -60,14 +88,28 @@ else
   fi
 fi
 
-PLAY_SETTINGS_URL="http://s3.amazonaws.com/heroku-jvm-langpack-play/ivysettings.xml"
-
 echo -n "-----> Installing ivysettings.xml....."
 if [ -f .ivy2/ivysettings.xml ]; then
   rm .ivy2/ivysettings.xml 
 fi
 curl --silent --max-time 10 --location $PLAY_SETTINGS_URL --create-dirs --output .ivy2/ivysettings.xml
 echo " done"
+
+#
+# Building
+#
+
+# Change dir to handle relative paths
+cd $BUILD_DIR
+
+export JAVA_HOME="$BUILD_DIR/$JDK_PATH"
+export PATH=$PATH:$JAVA_HOME/bin
+
+echo "Environment right before build:"
+export | sed -u 's/^/       /'
+
+echo "Java version:"
+java -version | sed -u 's/^/       /'
 
 # Build app
 echo "-----> Building Play! application..."
@@ -87,7 +129,11 @@ echo "       Precompiling: $PRECOMPILE_CMD"
 eval "$PRECOMPILE_CMD" | sed -u 's/^/       /'
 check_compile_status
 
-# Repack Play! framework into cache
+#
+# Post-build
+#
+
+# Repack stuff into cache
 mkdir -p $CACHE_DIR
 for DIR in $PLAY_PATH $IVY_PATH $JDK_PATH; do
   rm -rf $CACHE_DIR/$DIR
@@ -104,5 +150,3 @@ if [ ! -f Procfile ]; then
   echo "-----> No Procfile found. Will use the following default process: "
   echo "       play run --http.port=\$PORT \$PLAY_OPTS"
 fi
-
-export
