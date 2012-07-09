@@ -7,6 +7,7 @@ cat <<EOF
 ---
 config_vars:
   PATH: .jdk/bin:.play:.tools:/usr/local/bin:/usr/bin:/bin
+  JAVA_HOME: .jdk
   JAVA_OPTS: -Xmx384m -Xss512k -XX:+UseCompressedOops
   PLAY_OPTS: --%prod -Dprecompiled=true
 addons:
