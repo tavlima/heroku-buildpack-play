@@ -38,8 +38,6 @@ echo -n "-----> Installing JDK ${jdkVersion}..."
 install_java $BUILD_DIR $jdkVersion
 echo " done"
 
-copy_directories ".jdk" ${BUILD_DIR} ${CACHE_DIR}
-
 PLAY_VERSION=$(get_play_version conf/dependencies.yml)
 DEFAULT_PLAY_VERSION="1.2.4"
 VERSION_DECLARED=true
@@ -91,7 +89,7 @@ check_compile_status
 
 # Repack Play! framework into cache
 mkdir -p $CACHE_DIR
-for DIR in $PLAY_PATH $IVY_PATH ; do
+for DIR in $PLAY_PATH $IVY_PATH $JDK_PATH; do
   rm -rf $CACHE_DIR/$DIR
   cp -r $DIR $CACHE_DIR/$DIR
 done
@@ -106,3 +104,5 @@ if [ ! -f Procfile ]; then
   echo "-----> No Procfile found. Will use the following default process: "
   echo "       play run --http.port=\$PORT \$PLAY_OPTS"
 fi
+
+export
