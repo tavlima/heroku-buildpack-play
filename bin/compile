@@ -26,6 +26,7 @@ mkdir -p $CACHE_DIR
 
 JDK_PATH=".jdk7"
 OPENJDK7_URL="https://s3.amazonaws.com/heroku-jvm-langpack-java/openjdk7-u2-heroku-temaki.tar.gz"
+ORACLEJDK7_URL="http://download.oracle.com/otn-pub/java/jdk/7u5-b05/jdk-7u5-linux-x64.tar.gz"
 
 # Change dir to handle relative paths
 cd $BUILD_DIR
@@ -40,7 +41,8 @@ if [ ! -d "$BUILD_DIR/$JDK_PATH" ]; then
   echo -n "-----> Installing OpenJDK7u2 build (to .jdk7)....."
   mkdir "$BUILD_DIR/$JDK_PATH"
   cd "$BUILD_DIR/$JDK_PATH"
-  curl --max-time 180 --location $OPENJDK7_URL | tar xz
+#  curl --max-time 180 --location $OPENJDK7_URL | tar xz
+  curl --max-time 180 --location $ORACLEJDK7_URL | tar xz
   cd $BUILD_DIR
   cp -r $JDK_PATH $CACHE_DIR/$JDK_PATH
   echo " done"
